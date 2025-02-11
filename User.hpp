@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
-#include <tuple>
+#include <vector>
+#include <variant>
 
 class User {
 public:
@@ -9,18 +10,26 @@ public:
     double balance;
     bool is_active;
 
+    // Define a variant type for member pointers
+    using MemberVariant = std::variant<
+        int User::*,
+        std::string User::*,
+        double User::*,
+        bool User::*
+    >;
+
     User() = default;
     User(int id, std::string name, double balance, bool is_active)
         : id(id), name(std::move(name)), balance(balance), is_active(is_active) {}
 
     static std::string getTableName() { return "users"; }
 
-    static auto getMappings() {
-        return std::make_tuple(
-            std::make_pair(&User::id, "id"),
-            std::make_pair(&User::name, "name"),
-            std::make_pair(&User::balance, "balance"),
-            std::make_pair(&User::is_active, "is_active")
-        );
+    static std::vector<std::pair<MemberVariant, std::string>> getMappings() {
+        return {
+            {&User::id, "id"},
+            {&User::name, "name"},
+            {&User::balance, "balance"},
+            {&User::is_active, "is_active"}
+        };
     }
 }; 

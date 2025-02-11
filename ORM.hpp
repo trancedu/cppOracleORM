@@ -11,12 +11,15 @@ std::string getColumnNames() {
     auto mappings = T::getMappings();
     std::stringstream ss;
     
-    std::apply([&ss](auto&&... pairs) {
-        ((ss << pairs.second << ", "), ...);
-    }, mappings);
+    for (const auto& pair : mappings) {
+        ss << pair.second << ", ";
+    }
     
     std::string result = ss.str();
-    return result.substr(0, result.length() - 2);
+    if (!result.empty()) {
+        result.resize(result.size() - 2); // Remove trailing ", "
+    }
+    return result;
 }
 
 template <typename T>
@@ -24,9 +27,11 @@ std::vector<VariantType> getValues(const T& obj) {
     auto mappings = T::getMappings();
     std::vector<VariantType> values;
 
-    std::apply([&values, &obj](auto&&... pairs) {
-        ((values.push_back(obj.*(pairs.first))), ...);
-    }, mappings);
+    for (const auto& pair : mappings) {
+        std::visit([&](auto&& member) {
+            values.push_back(obj.*member);
+        }, pair.first);
+    }
 
     return values;
 }
@@ -76,21 +81,21 @@ T getObjectById(Connection* conn, int id) {
         int index = 1;
         auto mappings = T::getMappings();
 
-        std::apply([&](auto&&... pairs) {
-            (([&] {
-                using V = std::decay_t<decltype(obj.*(pairs.first))>;
-                if constexpr (std::is_same_v<V, int>) {
-                    obj.*(pairs.first) = rs->getInt(index);
-                } else if constexpr (std::is_same_v<V, double>) {
-                    obj.*(pairs.first) = rs->getDouble(index);
-                } else if constexpr (std::is_same_v<V, std::string>) {
-                    obj.*(pairs.first) = rs->getString(index);
-                } else if constexpr (std::is_same_v<V, bool>) {
-                    obj.*(pairs.first) = rs->getBool(index);
+        for (const auto& pair : mappings) {
+            std::visit([&](auto&& member) {
+                using ValueType = std::decay_t<decltype(obj.*member)>;
+                if constexpr (std::is_same_v<ValueType, int>) {
+                    obj.*member = rs->getInt(index);
+                } else if constexpr (std::is_same_v<ValueType, double>) {
+                    obj.*member = rs->getDouble(index);
+                } else if constexpr (std::is_same_v<ValueType, std::string>) {
+                    obj.*member = rs->getString(index);
+                } else if constexpr (std::is_same_v<ValueType, bool>) {
+                    obj.*member = rs->getBool(index);
                 }
                 index++;
-            }()), ...);
-        }, mappings);
+            }, pair.first);
+        }
     }
 
     Database::terminateStatement(stmt);
