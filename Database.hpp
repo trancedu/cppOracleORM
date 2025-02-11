@@ -35,6 +35,19 @@ struct Statement {
         params.emplace_back(value);
     }
     
+    template<typename T>
+    void set_param(int index, const T& value) {
+        if constexpr (std::is_same_v<T, int>) {
+            setInt(index, value);
+        } else if constexpr (std::is_same_v<T, double>) {
+            setDouble(index, value);
+        } else if constexpr (std::is_same_v<T, std::string>) {
+            setString(index, value);
+        } else if constexpr (std::is_same_v<T, bool>) {
+            setBool(index, value);
+        }
+    }
+    
     struct ResultSet {
         int currentRow = -1;
         std::vector<std::vector<std::variant<int, double, std::string, bool>>> data;
@@ -70,6 +83,19 @@ struct Statement {
             bool value = std::get<bool>(data[currentRow][index-1]);
             std::cout << "Getting BOOL at [" << index << "]: " << std::boolalpha << value << "\n";
             return value;
+        }
+        
+        template<typename T>
+        void set_value(T& member, int index) {
+            if constexpr (std::is_same_v<T, int>) {
+                member = getInt(index);
+            } else if constexpr (std::is_same_v<T, double>) {
+                member = getDouble(index);
+            } else if constexpr (std::is_same_v<T, std::string>) {
+                member = getString(index);
+            } else if constexpr (std::is_same_v<T, bool>) {
+                member = getBool(index);
+            }
         }
     };
     

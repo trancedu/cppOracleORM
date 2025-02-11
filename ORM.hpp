@@ -1,103 +1,87 @@
 #pragma once
 #include "Database.hpp"
 #include <tuple>
-#include <variant>
 #include <sstream>
+#include <concepts>
 
-using VariantType = std::variant<int, double, std::string, bool>;
+namespace ORM {
+    template<typename T>
+    struct EntityMapping;  // Forward declaration
 
-template <typename T>
-std::string getColumnNames() {
-    auto mappings = T::getMappings();
-    std::stringstream ss;
-    
-    for (const auto& pair : mappings) {
-        ss << pair.second << ", ";
-    }
-    
-    std::string result = ss.str();
-    if (!result.empty()) {
-        result.resize(result.size() - 2); // Remove trailing ", "
-    }
-    return result;
-}
+    template<typename T>
+    concept ORMEntity = requires {
+        typename EntityMapping<T>;  // Ensure specialization exists
+        { EntityMapping<T>::table_name } -> std::convertible_to<std::string>;
+        requires std::tuple_size_v<decltype(EntityMapping<T>::mappings)> > 0;
+    };
 
-template <typename T>
-std::vector<VariantType> getValues(const T& obj) {
-    auto mappings = T::getMappings();
-    std::vector<VariantType> values;
-
-    for (const auto& pair : mappings) {
-        std::visit([&](auto&& member) {
-            values.push_back(obj.*member);
-        }, pair.first);
+    template<ORMEntity T>
+    constexpr auto get_member_pointers() {
+        return std::apply([](auto&&... pairs) {
+            return std::make_tuple(pairs.first...);
+        }, EntityMapping<T>::mappings);
     }
 
-    return values;
-}
-
-template <typename T>
-void insertObject(Connection* conn, const T& obj) {
-    std::string sql = "INSERT INTO " + T::getTableName() + " (" + getColumnNames<T>() + ") VALUES (";
-    auto values = getValues(obj);
-
-    for (size_t i = 0; i < values.size(); i++) sql += "?,";
-    sql.pop_back();
-    sql += ")";
-
-    Statement* stmt = Database::createStatement(sql);
-    
-    int index = 1;
-    for (const auto& val : values) {
-        std::visit([&](auto&& arg) {
-            using V = std::decay_t<decltype(arg)>;
-            if constexpr (std::is_same_v<V, int>) {
-                stmt->setInt(index, arg);
-            } else if constexpr (std::is_same_v<V, double>) {
-                stmt->setDouble(index, arg);
-            } else if constexpr (std::is_same_v<V, std::string>) {
-                stmt->setString(index, arg);
-            } else if constexpr (std::is_same_v<V, bool>) {
-                stmt->setBool(index, arg);
-            }
-        }, val);
-        index++;
+    template<ORMEntity T>
+    std::string get_column_names() {
+        std::stringstream ss;
+        std::apply([&ss](auto&&... pairs) {
+            ((ss << pairs.second << ", "), ...);
+        }, EntityMapping<T>::mappings);
+        
+        std::string result = ss.str();
+        if (!result.empty()) result.resize(result.size() - 2);
+        return result;
     }
 
-    stmt->executeUpdate();
-    Database::terminateStatement(stmt);
-}
+    template<ORMEntity T>
+    auto get_values(const T& obj) {
+        return std::apply([&obj](auto&&... pairs) {
+            return std::make_tuple((obj.*(pairs.first))...);
+        }, EntityMapping<T>::mappings);
+    }
 
-template <typename T>
-T getObjectById(Connection* conn, int id) {
-    std::string sql = "SELECT " + getColumnNames<T>() + " FROM " + T::getTableName() + " WHERE id = ?";
-    Statement* stmt = Database::createStatement(sql);
-    stmt->setInt(1, id);
-    
-    auto rs = stmt->executeQuery();
-    T obj;
-    
-    if (rs->next()) {
-        int index = 1;
-        auto mappings = T::getMappings();
-
-        for (const auto& pair : mappings) {
-            std::visit([&](auto&& member) {
-                using ValueType = std::decay_t<decltype(obj.*member)>;
-                if constexpr (std::is_same_v<ValueType, int>) {
-                    obj.*member = rs->getInt(index);
-                } else if constexpr (std::is_same_v<ValueType, double>) {
-                    obj.*member = rs->getDouble(index);
-                } else if constexpr (std::is_same_v<ValueType, std::string>) {
-                    obj.*member = rs->getString(index);
-                } else if constexpr (std::is_same_v<ValueType, bool>) {
-                    obj.*member = rs->getBool(index);
-                }
-                index++;
-            }, pair.first);
+    template<ORMEntity T>
+    void insertObject(Connection* conn, const T& obj) {
+        constexpr size_t param_count = std::tuple_size_v<decltype(EntityMapping<T>::mappings)>;
+        std::string sql = "INSERT INTO " + EntityMapping<T>::table_name + " (" + 
+                         get_column_names<T>() + ") VALUES (";
+        
+        // Generate proper placeholders
+        for(size_t i = 0; i < param_count; ++i) {
+            sql += (i == 0) ? "?" : ",?";
         }
+        sql += ")";
+
+        Statement* stmt = Database::createStatement(sql);
+        
+        std::apply([stmt](const auto&... values) {
+            int index = 1;
+            ((stmt->set_param(index++, values)), ...);
+        }, get_values(obj));
+
+        stmt->executeUpdate();
+        Database::terminateStatement(stmt);
     }
 
-    Database::terminateStatement(stmt);
-    return obj;
+    template<ORMEntity T>
+    T getObjectById(Connection* conn, int id) {
+        std::string sql = "SELECT " + get_column_names<T>() + " FROM " + 
+                         EntityMapping<T>::table_name + " WHERE id = ?";
+        Statement* stmt = Database::createStatement(sql);
+        stmt->setInt(1, id);
+        
+        auto rs = stmt->executeQuery();
+        T obj;
+        
+        if (rs->next()) {
+            std::apply([&obj, rs](auto&&... pairs) {
+                int index = 1;
+                ((rs->set_value(obj.*(pairs.first), index++)), ...);
+            }, EntityMapping<T>::mappings);
+        }
+
+        Database::terminateStatement(stmt);
+        return obj;
+    }
 } 

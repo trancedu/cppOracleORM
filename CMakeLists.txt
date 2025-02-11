@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 add_executable(orm_demo
     main.cpp
     User.hpp
+    UserMapping.hpp
     Database.hpp
     ORM.hpp
 )

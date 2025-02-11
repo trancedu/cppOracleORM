@@ -1,4 +1,5 @@
 #include "User.hpp"
+#include "UserMapping.hpp"
 #include "ORM.hpp"
 #include <iostream>
 
@@ -7,10 +8,10 @@ int main() {
         Database::connect("user", "pass", "mock_db");
         
         User user(1, "Alice", 100.5, true);
-        insertObject(Database::conn, user);
+        ORM::insertObject(Database::conn, user);
         std::cout << "User inserted (mock)\n";
         
-        User loaded = getObjectById<User>(Database::conn, 1);
+        User loaded = ORM::getObjectById<User>(Database::conn, 1);
         std::cout << "Loaded user: " 
                   << loaded.id << ", " 
                   << loaded.name << ", " 
