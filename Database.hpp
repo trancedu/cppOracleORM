@@ -23,6 +23,13 @@ struct Statement {
         int currentRow = -1;
         std::vector<std::vector<std::variant<int, double, std::string>>> data;
         
+        // Preload mock data
+        ResultSet() {
+            data = {
+                {1, "Alice", 100.5}  // Sample row matching User structure
+            };
+        }
+        
         bool next() { return ++currentRow < data.size(); }
         int getInt(int index) { return std::get<int>(data[currentRow][index-1]); }
         double getDouble(int index) { return std::get<double>(data[currentRow][index-1]); }
