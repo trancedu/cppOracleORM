@@ -15,9 +15,20 @@ struct Statement {
     std::string sql;
     std::vector<std::variant<int, double, std::string>> params;
     
-    void setInt(int index, int value) { params.emplace_back(value); }
-    void setDouble(int index, double value) { params.emplace_back(value); }
-    void setString(int index, const std::string& value) { params.emplace_back(value); }
+    void setInt(int index, int value) { 
+        std::cout << "Setting INT param [" << index << "] = " << value << "\n";
+        params.emplace_back(value); 
+    }
+    
+    void setDouble(int index, double value) { 
+        std::cout << "Setting DOUBLE param [" << index << "] = " << value << "\n";
+        params.emplace_back(value); 
+    }
+    
+    void setString(int index, const std::string& value) { 
+        std::cout << "Setting STRING param [" << index << "] = " << value << "\n";
+        params.emplace_back(value); 
+    }
     
     struct ResultSet {
         int currentRow = -1;
@@ -31,9 +42,24 @@ struct Statement {
         }
         
         bool next() { return ++currentRow < data.size(); }
-        int getInt(int index) { return std::get<int>(data[currentRow][index-1]); }
-        double getDouble(int index) { return std::get<double>(data[currentRow][index-1]); }
-        std::string getString(int index) { return std::get<std::string>(data[currentRow][index-1]); }
+        
+        int getInt(int index) {
+            int value = std::get<int>(data[currentRow][index-1]);
+            std::cout << "Getting INT at [" << index << "]: " << value << "\n";
+            return value;
+        }
+        
+        double getDouble(int index) {
+            double value = std::get<double>(data[currentRow][index-1]);
+            std::cout << "Getting DOUBLE at [" << index << "]: " << value << "\n";
+            return value;
+        }
+        
+        std::string getString(int index) {
+            std::string value = std::get<std::string>(data[currentRow][index-1]);
+            std::cout << "Getting STRING at [" << index << "]: " << value << "\n";
+            return value;
+        }
     };
     
     ResultSet* executeQuery() { return new ResultSet(); }
