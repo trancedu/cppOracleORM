@@ -13,7 +13,7 @@ struct Connection {
 
 struct Statement {
     std::string sql;
-    std::vector<std::variant<int, double, std::string>> params;
+    std::vector<std::variant<int, double, std::string, bool>> params;
     
     void setInt(int index, int value) { 
         std::cout << "Setting INT param [" << index << "] = " << value << "\n";
@@ -30,14 +30,19 @@ struct Statement {
         params.emplace_back(value); 
     }
     
+    void setBool(int index, bool value) { 
+        std::cout << "Setting BOOL param [" << index << "] = " << std::boolalpha << value << "\n";
+        params.emplace_back(value);
+    }
+    
     struct ResultSet {
         int currentRow = -1;
-        std::vector<std::vector<std::variant<int, double, std::string>>> data;
+        std::vector<std::vector<std::variant<int, double, std::string, bool>>> data;
         
         // Preload mock data
         ResultSet() {
             data = {
-                {1, "Alice", 100.5}  // Sample row matching User structure
+                {1, "Alice", 100.5, true}  // Sample row matching User structure
             };
         }
         
@@ -58,6 +63,12 @@ struct Statement {
         std::string getString(int index) {
             std::string value = std::get<std::string>(data[currentRow][index-1]);
             std::cout << "Getting STRING at [" << index << "]: " << value << "\n";
+            return value;
+        }
+        
+        bool getBool(int index) {
+            bool value = std::get<bool>(data[currentRow][index-1]);
+            std::cout << "Getting BOOL at [" << index << "]: " << std::boolalpha << value << "\n";
             return value;
         }
     };

@@ -4,7 +4,7 @@
 #include <variant>
 #include <sstream>
 
-using VariantType = std::variant<int, double, std::string>;
+using VariantType = std::variant<int, double, std::string, bool>;
 
 template <typename T>
 std::string getColumnNames() {
@@ -52,6 +52,8 @@ void insertObject(Connection* conn, const T& obj) {
                 stmt->setDouble(index, arg);
             } else if constexpr (std::is_same_v<V, std::string>) {
                 stmt->setString(index, arg);
+            } else if constexpr (std::is_same_v<V, bool>) {
+                stmt->setBool(index, arg);
             }
         }, val);
         index++;
@@ -83,6 +85,8 @@ T getObjectById(Connection* conn, int id) {
                     obj.*(pairs.first) = rs->getDouble(index);
                 } else if constexpr (std::is_same_v<V, std::string>) {
                     obj.*(pairs.first) = rs->getString(index);
+                } else if constexpr (std::is_same_v<V, bool>) {
+                    obj.*(pairs.first) = rs->getBool(index);
                 }
                 index++;
             }()), ...);

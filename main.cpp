@@ -6,7 +6,7 @@ int main() {
     try {
         Database::connect("user", "pass", "mock_db");
         
-        User user(1, "Alice", 100.5);
+        User user(1, "Alice", 100.5, true);
         insertObject(Database::conn, user);
         std::cout << "User inserted (mock)\n";
         
@@ -14,8 +14,9 @@ int main() {
         std::cout << "Loaded user: " 
                   << loaded.id << ", " 
                   << loaded.name << ", " 
-                  << loaded.balance << "\n";
-        
+                  << loaded.balance << ", "
+                  << loaded.is_active << "\n";
+
         Database::disconnect();
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << "\n";
